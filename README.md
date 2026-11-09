@@ -164,6 +164,85 @@ IAM 권한은 따로 추가하지 않습니다. SSM 접속용으로 WAS 역할�
 - 시간대를 `Asia/Seoul`로 두는 이유: 생일·진료 날짜 검증의 "오늘"이 서버 시간대를 따르는데, EC2 기본값(UTC)이면 한국 시간 00~09시에 하루가 어긋납니다.
 - EC2 IAM 역할에 `AmazonSSMManagedInstanceCore`가 필요합니다. SSM 접속과 Parameter Store 읽기에 함께 쓰입니다. SSH(22) 인바운드는 열지 않습니다.
 
+## Docker 이미지로 실행 (GHCR)
+
+빌드된 이미지는 조직의 GitHub Container Registry에 있습니다. `linux/amd64`(EC2)와 `linux/arm64`(Apple Silicon) 모두 들어 있어 실행하는 곳에 맞는 이미지가 자동으로 받아집니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 이미지 | `ghcr.io/kdt-6-aws-3/middle-project-was` |
+| 태그 | `0.0.1` (시맨틱 버전) |
+| 패키지 페이지 | <https://github.com/orgs/kdt-6-aws-3/packages/container/package/middle-project-was> |
+| 컨테이너 포트 | 8080 (헬스 체크 `/actuator/health`) |
+| 실행 계정 | 비root `petclinic` |
+
+### 1. 레지스트리 로그인
+
+패키지가 private이라 받기 전에 한 번 로그인합니다. 비밀번호 자리에는 GitHub 비밀번호가 아니라 `read:packages` 권한이 있는 Personal access token(classic)을 넣습니다.
+
+```bash
+docker login ghcr.io -u <GitHub 사용자명>
+```
+
+`gh` CLI를 쓰면 토큰을 복사하지 않아도 됩니다.
+
+```bash
+gh auth login --scopes read:packages
+gh auth token | docker login ghcr.io -u "$(gh api user -q .login)" --password-stdin
+```
+
+### 2. 받기와 실행
+
+```bash
+docker pull ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+```
+
+접속 정보는 이미지에 들어 있지 않으므로 환경 변수로 넘깁니다. [.env.example](.env.example)을 `.env`로 복사해 값을 채운 뒤 실행합니다. `.env`는 커밋하지 않습니다.
+
+```bash
+cp .env.example .env
+docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+```
+
+| 환경 변수 | 설명 | 이미지 기본값 |
+| --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | `mysql`이면 MySQL, 비우면 H2(메모리) | `mysql` |
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://<DB 호스트>:3306/petclinic` | 없음 |
+| `SPRING_DATASOURCE_USERNAME` | 앱 전용 DB 계정 | 없음 |
+| `SPRING_DATASOURCE_PASSWORD` | 비밀번호 | 없음 |
+| `LOG_LEVEL` | `DEBUG` · `INFO` · `WARN` · `ERROR` | `INFO` |
+| `APP_ENV` | 로그 JSON의 `env` 값 | `production` |
+| `JAVA_OPTS` | JVM 옵션 | `-XX:+UseContainerSupport -XX:MaxRAMPercentage=75` |
+
+DB 없이 API만 확인하려면 H2로 띄웁니다.
+
+```bash
+docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=default ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+```
+
+### 3. 확인
+
+```bash
+docker ps --filter name=petclinic-was   # STATUS에 (healthy)가 보이면 정상
+curl -i http://localhost:8080/actuator/health
+docker logs -f petclinic-was
+```
+
+- 로그는 한 줄에 JSON 하나(`timestamp`, `level`, `service`, `env`, `traceId`, `requestId` 등)로 출력됩니다.
+- 요청 헤더 `X-Trace-Id`를 보내면 그 값을, 없으면 새로 만든 값을 로그와 응답 헤더 `X-Trace-Id`·`X-Request-Id`에 남깁니다.
+
+### 새 버전 올리기
+
+이미지 빌드에 쓰는 `Dockerfile`은 팀 결정에 따라 `.gitignore`로 저장소에서 제외되어 있습니다. 새 버전은 Dockerfile을 가진 담당자가 버전을 올려 푸시합니다(`write:packages` 권한 필요).
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  --label org.opencontainers.image.source=https://github.com/kdt-6-aws-3/middle-project-was \
+  -t ghcr.io/kdt-6-aws-3/middle-project-was:<버전> --push .
+```
+
+버전은 시맨틱 버전(`MAJOR.MINOR.PATCH`)을 따릅니다. 이미 올린 태그는 덮어쓰지 않고 새 번호를 씁니다.
+
 ## 원본 프로젝트
 
 이 프로젝트는 [spring-projects/spring-petclinic](https://github.com/spring-projects/spring-petclinic)(Apache License 2.0)에서 출발했습니다. 원본의 설계 설명은 [발표 자료](https://speakerdeck.com/michaelisvy/spring-petclinic-sample-application)를 참고하세요.
