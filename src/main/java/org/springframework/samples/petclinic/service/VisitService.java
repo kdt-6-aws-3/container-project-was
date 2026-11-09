@@ -27,10 +27,12 @@ public class VisitService {
 		this.owners = owners;
 	}
 
+	@Transactional(readOnly = true)
 	public List<VisitDetails> listVisits(int ownerId, int petId) {
 		return findPet(findOwner(ownerId), petId).getVisits().stream().map(VisitDetails::from).toList();
 	}
 
+	@Transactional
 	public VisitDetails createVisit(int ownerId, int petId, VisitRequest request) {
 		Owner owner = findOwner(ownerId);
 		Set<Integer> existingVisitIds = findPet(owner, petId).getVisits()
@@ -55,6 +57,7 @@ public class VisitService {
 		return VisitDetails.from(created);
 	}
 
+	@Transactional
 	public VisitDetails updateVisit(int ownerId, int petId, int visitId, VisitRequest request) {
 		Owner owner = findOwner(ownerId);
 		Visit visit = findVisit(findPet(owner, petId), visitId);

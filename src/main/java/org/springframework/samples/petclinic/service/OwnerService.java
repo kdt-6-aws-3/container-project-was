@@ -30,8 +30,8 @@ public class OwnerService {
 		this.appointments = appointments;
 	}
 
+	@Transactional(readOnly = true)
 	public PageResponse<OwnerSummary> findOwners(String name, int page, int size) {
-
 		int validatedPage = Math.max(page, 1);
 		int validatedSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
 		Page<Owner> results = this.owners.findByNameStartingWith(name.strip(),
@@ -39,16 +39,19 @@ public class OwnerService {
 		return PageResponse.from(results, OwnerSummary::from);
 	}
 
+	@Transactional(readOnly = true)
 	public OwnerDetails getOwner(int ownerId) {
 		return OwnerDetails.from(findOwner(ownerId));
 	}
 
+	@Transactional
 	public OwnerDetails createOwner(OwnerRequest request) {
 		Owner owner = new Owner();
 		request.applyTo(owner);
 		return OwnerDetails.from(this.owners.save(owner));
 	}
 
+	@Transactional
 	public OwnerDetails updateOwner(int ownerId, OwnerRequest request) {
 		Owner owner = findOwner(ownerId);
 		request.applyTo(owner);

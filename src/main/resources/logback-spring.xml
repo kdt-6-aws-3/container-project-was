@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="petclinic-was"/>
+  <springProperty scope="context" name="APP_ENV" source="app.env" defaultValue="local"/>
+
+  <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <includeCallerData>false</includeCallerData>
+      <fieldNames>
+        <timestamp>timestamp</timestamp>
+        <version>[ignore]</version>
+        <levelValue>[ignore]</levelValue>
+        <logger>logger</logger>
+        <thread>[ignore]</thread>
+        <message>message</message>
+        <level>level</level>
+        <stackTrace>stackTrace</stackTrace>
+      </fieldNames>
+      <customFields>{"service":"${SERVICE_NAME}","env":"${APP_ENV}"}</customFields>
+      <timeZone>Asia/Seoul</timeZone>
+      <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSXXX</timestampPattern>
+      <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+        <maxDepthPerCause>20</maxDepthPerCause>
+        <maxLength>4096</maxLength>
+        <shortenedClassNameLength>40</shortenedClassNameLength>
+        <exclude>sun\.reflect\..*</exclude>
+        <rootCauseFirst>true</rootCauseFirst>
+      </throwableConverter>
+      <provider class="net.logstash.logback.composite.loggingevent.MdcJsonProvider"/>
+      <provider class="net.logstash.logback.composite.loggingevent.LoggingEventPatternJsonProvider">
+        <pattern>{"thread":"%thread"}</pattern>
+      </provider>
+    </encoder>
+  </appender>
+
+  <springProfile name="local">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} [%X{traceId}] - %msg%n</pattern>
+      </encoder>
+    </appender>
+    <root level="${LOG_LEVEL:-INFO}">
+      <appender-ref ref="STDOUT"/>
+    </root>
+  </springProfile>
+
+  <springProfile name="!local">
+    <root level="${LOG_LEVEL:-INFO}">
+      <appender-ref ref="JSON_STDOUT"/>
+    </root>
+  </springProfile>
+
+</configuration>

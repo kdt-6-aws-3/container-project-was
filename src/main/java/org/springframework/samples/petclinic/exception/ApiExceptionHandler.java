@@ -46,6 +46,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler(ApiValidationException.class)
 	ProblemDetail handleApiValidation(ApiValidationException ex) {
+		logger.warn("Validation failed: {}", ex.getMessage());
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, VALIDATION_FAILED);
 		problem.setProperty("errors", toFieldErrors(ex.getErrors(), ex.getFieldAliases()));
 		return problem;
@@ -53,6 +54,7 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
 	@ExceptionHandler(ResourceNotFoundException.class)
 	ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+		logger.warn("Resource not found: {}", ex.getMessage());
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
 	}
 

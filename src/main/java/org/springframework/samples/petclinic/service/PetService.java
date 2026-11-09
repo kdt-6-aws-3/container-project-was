@@ -37,10 +37,12 @@ public class PetService {
 		this.appointments = appointments;
 	}
 
+	@Transactional(readOnly = true)
 	public PetDetails getPet(int ownerId, int petId) {
 		return PetDetails.from(findPet(findOwner(ownerId), petId));
 	}
 
+	@Transactional
 	public PetDetails createPet(int ownerId, PetRequest request) {
 		Owner owner = findOwner(ownerId);
 		Pet pet = new Pet();
@@ -57,6 +59,7 @@ public class PetService {
 		return PetDetails.from(created);
 	}
 
+	@Transactional
 	public PetDetails updatePet(int ownerId, int petId, PetRequest request) {
 		Owner owner = findOwner(ownerId);
 		Pet existingPet = findPet(owner, petId);
