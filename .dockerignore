@@ -1,9 +1,17 @@
 build/
+target/
 .gradle/
 .git/
 .github/
+.vscode/
+.idea/
 deploy/
 docs/
+logs/
 *.md
 *.zip
+.env
+.env.*
 .DS_Store
+Dockerfile
+.dockerignore

@@ -172,7 +172,7 @@ IAM 권한은 따로 추가하지 않습니다. SSM 접속용으로 WAS 역할�
 | 항목 | 값 |
 | --- | --- |
 | 이미지 | `ghcr.io/kdt-6-aws-3/middle-project-was` |
-| 태그 | `0.0.1` (시맨틱 버전) |
+| 태그 | `0.0.2` (시맨틱 버전) |
 | 패키지 페이지 | <https://github.com/orgs/kdt-6-aws-3/packages/container/package/middle-project-was> |
 | 컨테이너 포트 | 8080 (헬스 체크 `/actuator/health`) |
 | 실행 계정 | 비root `petclinic` |
@@ -195,14 +195,14 @@ gh auth token | docker login ghcr.io -u "$(gh api user -q .login)" --password-st
 ### 2. 받기와 실행
 
 ```bash
-docker pull ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+docker pull ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
 ```
 
 접속 정보는 이미지에 들어 있지 않으므로 환경 변수로 넘깁니다. [.env.example](.env.example)을 `.env`로 복사해 값을 채운 뒤 실행합니다. `.env`는 커밋하지 않습니다.
 
 ```bash
 cp .env.example .env
-docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
 ```
 
 | 환경 변수 | 설명 | 이미지 기본값 |
@@ -213,12 +213,13 @@ docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aw
 | `SPRING_DATASOURCE_PASSWORD` | 비밀번호 | 없음 |
 | `LOG_LEVEL` | `DEBUG` · `INFO` · `WARN` · `ERROR` | `INFO` |
 | `APP_ENV` | 로그 JSON의 `env` 값 | `production` |
-| `JAVA_OPTS` | JVM 옵션 | `-XX:+UseContainerSupport -XX:MaxRAMPercentage=75` |
+| `JAVA_OPTS` | JVM 옵션 | `-XX:MaxRAMPercentage=75` |
+| `TZ` | 컨테이너 시간대 (예약 날짜 검증 기준) | `Asia/Seoul` |
 
 DB 없이 API만 확인하려면 H2로 띄웁니다.
 
 ```bash
-docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=default ghcr.io/kdt-6-aws-3/middle-project-was:0.0.1
+docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=default ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
 ```
 
 ### 3. 확인
@@ -238,7 +239,7 @@ docker logs -f petclinic-was
 
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 \
-  --label org.opencontainers.image.source=https://github.com/kdt-6-aws-3/middle-project-was \
+  --build-arg VERSION=<버전> \
   -t ghcr.io/kdt-6-aws-3/middle-project-was:<버전> --push .
 ```
 
