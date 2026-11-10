@@ -171,9 +171,9 @@ IAM 권한은 따로 추가하지 않습니다. SSM 접속용으로 WAS 역할�
 
 | 항목 | 값 |
 | --- | --- |
-| 이미지 | `ghcr.io/kdt-6-aws-3/middle-project-was` |
+| 이미지 | `ghcr.io/kdt-6-aws-3/container-project-was` |
 | 태그 | `0.0.2` (시맨틱 버전) |
-| 패키지 페이지 | <https://github.com/orgs/kdt-6-aws-3/packages/container/package/middle-project-was> |
+| 패키지 페이지 | <https://github.com/orgs/kdt-6-aws-3/packages/container/package/container-project-was> |
 | 컨테이너 포트 | 8080 (헬스 체크 `/actuator/health`) |
 | 실행 계정 | 비root `petclinic` |
 
@@ -195,14 +195,14 @@ gh auth token | docker login ghcr.io -u "$(gh api user -q .login)" --password-st
 ### 2. 받기와 실행
 
 ```bash
-docker pull ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
+docker pull ghcr.io/kdt-6-aws-3/container-project-was:0.0.2
 ```
 
 접속 정보는 이미지에 들어 있지 않으므로 환경 변수로 넘깁니다. [.env.example](.env.example)을 `.env`로 복사해 값을 채운 뒤 실행합니다. `.env`는 커밋하지 않습니다.
 
 ```bash
 cp .env.example .env
-docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
+docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aws-3/container-project-was:0.0.2
 ```
 
 | 환경 변수 | 설명 | 이미지 기본값 |
@@ -219,7 +219,7 @@ docker run -d --name petclinic-was -p 8080:8080 --env-file .env ghcr.io/kdt-6-aw
 DB 없이 API만 확인하려면 H2로 띄웁니다.
 
 ```bash
-docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=default ghcr.io/kdt-6-aws-3/middle-project-was:0.0.2
+docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=default ghcr.io/kdt-6-aws-3/container-project-was:0.0.2
 ```
 
 ### 3. 확인
@@ -240,7 +240,7 @@ docker logs -f petclinic-was
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 \
   --build-arg VERSION=<버전> \
-  -t ghcr.io/kdt-6-aws-3/middle-project-was:<버전> --push .
+  -t ghcr.io/kdt-6-aws-3/container-project-was:<버전> --push .
 ```
 
 버전은 시맨틱 버전(`MAJOR.MINOR.PATCH`)을 따릅니다. 이미 올린 태그는 덮어쓰지 않고 새 번호를 씁니다.
