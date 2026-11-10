@@ -1,12 +1,9 @@
 package org.springframework.samples.petclinic.entity;
 
 import java.time.LocalDate;
-import java.util.Collection;
-import java.util.LinkedHashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
-import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,25 +14,40 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
+/**
+ * pets 테이블: 반려동물. 반려동물을 지우면 진료 기록도 함께 지워진다.
+ */
 @Entity
 @Table(name = "pets")
-@AttributeOverride(name = "name", column = @Column(name = "pet_name"))
-public class Pet extends NamedEntity {
+public class Pet extends BaseEntity {
 
-	@Column
+	@Column(name = "pet_name", nullable = false)
+	private String name;
+
+	@Column(nullable = false)
 	private LocalDate birthDate;
 
-	@ManyToOne
-	@JoinColumn(name = "type_id")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "type_id", nullable = false)
 	private PetType type;
 
-	@OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-	@JoinColumn(name = "pet_id", nullable = false)
-	@OrderBy("date ASC")
-	private final Set<Visit> visits = new LinkedHashSet<>();
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "owner_id", nullable = false)
+	private Owner owner;
 
-	public void setBirthDate(LocalDate birthDate) {
-		this.birthDate = birthDate;
+	@OneToMany(mappedBy = "pet", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("date, id")
+	private List<Visit> visits = new ArrayList<>();
+
+	protected Pet() {
+	}
+
+	public Pet(Owner owner) {
+		this.owner = owner;
+	}
+
+	public String getName() {
+		return this.name;
 	}
 
 	public LocalDate getBirthDate() {
@@ -46,29 +58,18 @@ public class Pet extends NamedEntity {
 		return this.type;
 	}
 
-	public void setType(PetType type) {
-		this.type = type;
+	public Owner getOwner() {
+		return this.owner;
 	}
 
-	public Collection<Visit> getVisits() {
+	public List<Visit> getVisits() {
 		return this.visits;
 	}
 
-	public void addVisit(Visit visit) {
-		getVisits().add(visit);
-	}
-
-	public Visit getVisit(Integer id) {
-		for (Visit visit : getVisits()) {
-			if (!visit.isNew() && Objects.equals(visit.getId(), id)) {
-				return visit;
-			}
-		}
-		return null;
-	}
-
-	public void removeVisit(Visit visit) {
-		getVisits().remove(visit);
+	public void update(String name, LocalDate birthDate, PetType type) {
+		this.name = name;
+		this.birthDate = birthDate;
+		this.type = type;
 	}
 
 }

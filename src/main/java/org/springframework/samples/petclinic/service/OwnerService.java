@@ -1,15 +1,9 @@
 package org.springframework.samples.petclinic.service;
 
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.samples.petclinic.dto.OwnerDetails;
-import org.springframework.samples.petclinic.dto.OwnerRequest;
-import org.springframework.samples.petclinic.dto.OwnerSummary;
+import org.springframework.data.domain.Sort;
+import org.springframework.samples.petclinic.dto.OwnerDto;
 import org.springframework.samples.petclinic.dto.PageResponse;
 import org.springframework.samples.petclinic.entity.Owner;
-import org.springframework.samples.petclinic.entity.Pet;
 import org.springframework.samples.petclinic.exception.ResourceNotFoundException;
 import org.springframework.samples.petclinic.repository.AppointmentRepository;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
@@ -17,9 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 public class OwnerService {
-
-	private static final int MAX_PAGE_SIZE = 100;
 
 	private final OwnerRepository owners;
 
@@ -30,41 +23,35 @@ public class OwnerService {
 		this.appointments = appointments;
 	}
 
-	@Transactional(readOnly = true)
-	public PageResponse<OwnerSummary> findOwners(String name, int page, int size) {
-		int validatedPage = Math.max(page, 1);
-		int validatedSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
-		Page<Owner> results = this.owners.findByNameStartingWith(name.strip(),
-				PageRequest.of(validatedPage - 1, validatedSize));
-		return PageResponse.from(results, OwnerSummary::from);
+	/** 이름이 name으로 시작하는 보호자 목록 (대소문자 무시) */
+	public PageResponse<OwnerDto.Summary> findOwners(String name, int page, int size) {
+		return PageResponse.from(this.owners.findByNameStartingWithIgnoreCase(name.strip(),
+				PageResponse.request(page, size, Sort.by("id"))), OwnerDto.Summary::from);
 	}
 
-	@Transactional(readOnly = true)
-	public OwnerDetails getOwner(int ownerId) {
-		return OwnerDetails.from(findOwner(ownerId));
+	public OwnerDto.Response getOwner(int ownerId) {
+		return OwnerDto.Response.from(findOwner(ownerId));
 	}
 
 	@Transactional
-	public OwnerDetails createOwner(OwnerRequest request) {
+	public OwnerDto.Response createOwner(OwnerDto.Request request) {
 		Owner owner = new Owner();
-		request.applyTo(owner);
-		return OwnerDetails.from(this.owners.save(owner));
+		owner.update(request.name(), request.address(), request.phone());
+		return OwnerDto.Response.from(this.owners.save(owner));
 	}
 
 	@Transactional
-	public OwnerDetails updateOwner(int ownerId, OwnerRequest request) {
+	public OwnerDto.Response updateOwner(int ownerId, OwnerDto.Request request) {
 		Owner owner = findOwner(ownerId);
-		request.applyTo(owner);
-		return OwnerDetails.from(this.owners.save(owner));
+		owner.update(request.name(), request.address(), request.phone());
+		return OwnerDto.Response.from(owner);
 	}
 
+	/** 예약을 먼저 지운 뒤 보호자를 지운다. 반려동물·진료 기록은 엔티티 cascade로 함께 지워진다. */
 	@Transactional
 	public void deleteOwner(int ownerId) {
 		Owner owner = findOwner(ownerId);
-		List<Integer> petIds = owner.getPets().stream().map(Pet::getId).toList();
-		if (!petIds.isEmpty()) {
-			this.appointments.deleteByPetIds(petIds);
-		}
+		this.appointments.deleteByOwnerId(ownerId);
 		this.owners.delete(owner);
 	}
 

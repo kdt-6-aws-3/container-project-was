@@ -1,54 +1,54 @@
 package org.springframework.samples.petclinic.exception;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.Objects;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.Errors;
-import org.springframework.validation.FieldError;
+import org.springframework.samples.petclinic.exception.ApiValidationException.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+/**
+ * 모든 오류를 RFC 9457 ProblemDetail(JSON)로 응답한다. 입력 오류는 errors[{field, code, message}]를 함께 보낸다.
+ */
+@NullMarked
 @RestControllerAdvice
 class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
-	private static final Logger logger = LoggerFactory.getLogger(ApiExceptionHandler.class);
+	private static final Logger logger = Objects.requireNonNull(LoggerFactory.getLogger(ApiExceptionHandler.class));
 
 	private static final String VALIDATION_FAILED = "Validation failed";
 
-	private final MessageSource messages;
-
-	ApiExceptionHandler(MessageSource messages) {
-		this.messages = messages;
-	}
-
+	/** @Valid 요청 본문 검증 실패 */
 	@Override
-	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+	protected @Nullable ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
 			HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 		ProblemDetail problem = ex.getBody();
 		problem.setDetail(VALIDATION_FAILED);
-		problem.setProperty("errors", toFieldErrors(ex.getBindingResult(), Map.of()));
+		problem.setProperty("errors", ex.getBindingResult()
+			.getFieldErrors()
+			.stream()
+			.map(error -> new FieldError(error.getField(), error.getCode(), error.getDefaultMessage()))
+			.toList());
 		return handleExceptionInternal(ex, problem, headers, status, request);
 	}
 
 	@ExceptionHandler(ApiValidationException.class)
 	ProblemDetail handleApiValidation(ApiValidationException ex) {
-		logger.warn("Validation failed: {}", ex.getMessage());
+		logger.warn(ex.getMessage());
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, VALIDATION_FAILED);
-		problem.setProperty("errors", toFieldErrors(ex.getErrors(), ex.getFieldAliases()));
+		problem.setProperty("errors", ex.getErrors());
 		return problem;
 	}
 
@@ -68,19 +68,6 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 	ProblemDetail handleUnexpected(Exception ex) {
 		logger.error("Unexpected error while handling an API request", ex);
 		return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
-	}
-
-	private List<ApiFieldError> toFieldErrors(Errors errors, Map<String, String> fieldAliases) {
-		Locale locale = LocaleContextHolder.getLocale();
-		return errors.getFieldErrors().stream().map(error -> toFieldError(error, fieldAliases, locale)).toList();
-	}
-
-	private ApiFieldError toFieldError(FieldError error, Map<String, String> fieldAliases, Locale locale) {
-		String field = fieldAliases.getOrDefault(error.getField(), error.getField());
-		return new ApiFieldError(field, error.getCode(), this.messages.getMessage(error, locale));
-	}
-
-	record ApiFieldError(String field, String code, String message) {
 	}
 
 }

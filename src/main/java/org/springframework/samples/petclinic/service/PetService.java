@@ -1,124 +1,127 @@
 package org.springframework.samples.petclinic.service;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import org.springframework.samples.petclinic.dto.PetDetails;
-import org.springframework.samples.petclinic.dto.PetRequest;
+import org.springframework.samples.petclinic.dto.PetDto;
 import org.springframework.samples.petclinic.entity.Owner;
 import org.springframework.samples.petclinic.entity.Pet;
+import org.springframework.samples.petclinic.entity.PetType;
+import org.springframework.samples.petclinic.entity.Visit;
 import org.springframework.samples.petclinic.exception.ApiValidationException;
 import org.springframework.samples.petclinic.exception.ResourceNotFoundException;
 import org.springframework.samples.petclinic.repository.AppointmentRepository;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
+import org.springframework.samples.petclinic.repository.PetRepository;
 import org.springframework.samples.petclinic.repository.PetTypeRepository;
+import org.springframework.samples.petclinic.repository.VisitRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.validation.BeanPropertyBindingResult;
-import org.springframework.validation.Errors;
 
+/**
+ * 반려동물, 반려동물의 진료 기록, 반려동물 종류.
+ */
 @Service
+@Transactional(readOnly = true)
 public class PetService {
 
-	private static final Map<String, String> FIELD_ALIASES = Map.of("type", "typeId");
-
 	private final OwnerRepository owners;
+
+	private final PetRepository pets;
+
+	private final VisitRepository visits;
 
 	private final PetTypeRepository types;
 
 	private final AppointmentRepository appointments;
 
-	public PetService(OwnerRepository owners, PetTypeRepository types, AppointmentRepository appointments) {
+	public PetService(OwnerRepository owners, PetRepository pets, VisitRepository visits, PetTypeRepository types,
+			AppointmentRepository appointments) {
 		this.owners = owners;
+		this.pets = pets;
+		this.visits = visits;
 		this.types = types;
 		this.appointments = appointments;
 	}
 
-	@Transactional(readOnly = true)
-	public PetDetails getPet(int ownerId, int petId) {
-		return PetDetails.from(findPet(findOwner(ownerId), petId));
+	public List<PetDto.TypeResponse> listPetTypes() {
+		return this.types.findAllByOrderByNameAsc().stream().map(PetDto.TypeResponse::from).toList();
+	}
+
+	public PetDto.Response getPet(int ownerId, int petId) {
+		return PetDto.Response.from(findPet(ownerId, petId));
 	}
 
 	@Transactional
-	public PetDetails createPet(int ownerId, PetRequest request) {
-		Owner owner = findOwner(ownerId);
-		Pet pet = new Pet();
-		throwIfInvalid(applyAndValidate(request, pet));
-
-		Set<Integer> existingPetIds = owner.getPets().stream().map(Pet::getId).collect(Collectors.toSet());
-		owner.addPet(pet);
-		Owner saved = this.owners.saveAndFlush(owner);
-		Pet created = saved.getPets()
-			.stream()
-			.filter(candidate -> !existingPetIds.contains(candidate.getId()))
-			.findFirst()
-			.orElseThrow();
-		return PetDetails.from(created);
+	public PetDto.Response createPet(int ownerId, PetDto.Request request) {
+		Owner owner = this.owners.findById(ownerId)
+			.orElseThrow(() -> new ResourceNotFoundException("Owner " + ownerId + " not found"));
+		Pet pet = new Pet(owner);
+		pet.update(request.name(), request.birthDate(), findType(request.typeId()));
+		return PetDto.Response.from(this.pets.save(pet));
 	}
 
 	@Transactional
-	public PetDetails updatePet(int ownerId, int petId, PetRequest request) {
-		Owner owner = findOwner(ownerId);
-		Pet existingPet = findPet(owner, petId);
-		Pet pet = new Pet();
-		pet.setId(petId);
-		throwIfInvalid(applyAndValidate(request, pet));
-
-		existingPet.setName(pet.getName());
-		existingPet.setBirthDate(pet.getBirthDate());
-		existingPet.setType(pet.getType());
-		Owner saved = this.owners.saveAndFlush(owner);
-		return PetDetails.from(saved.getPet(petId));
+	public PetDto.Response updatePet(int ownerId, int petId, PetDto.Request request) {
+		Pet pet = findPet(ownerId, petId);
+		pet.update(request.name(), request.birthDate(), findType(request.typeId()));
+		return PetDto.Response.from(pet);
 	}
 
+	/** 예약을 먼저 지운 뒤 반려동물을 지운다. 진료 기록은 엔티티 cascade로 함께 지워진다. */
 	@Transactional
 	public void deletePet(int ownerId, int petId) {
-		Owner owner = findOwner(ownerId);
-		Pet pet = findPet(owner, petId);
-		this.appointments.deleteByPetIds(List.of(petId));
-		owner.removePet(pet);
-		this.owners.save(owner);
+		Pet pet = findPet(ownerId, petId);
+		this.appointments.deleteByPetId(petId);
+		this.pets.delete(pet);
 	}
 
-	private Errors applyAndValidate(PetRequest request, Pet pet) {
-		pet.setName(request.name());
-		pet.setBirthDate(request.birthDate());
-		Errors errors = new BeanPropertyBindingResult(pet, "pet");
-		if (request.typeId() != null) {
-			this.types.findById(request.typeId())
-				.ifPresentOrElse(pet::setType, () -> errors.rejectValue("type", "notFound", "not found"));
-		}
-		new PetValidator().validate(pet, errors);
-		if (request.typeId() == null && !pet.isNew()) {
-
-			errors.rejectValue("type", "required", "required");
-		}
-		if (pet.getBirthDate() != null && pet.getBirthDate().isAfter(LocalDate.now())) {
-			errors.rejectValue("birthDate", "typeMismatch.birthDate");
-		}
-		return errors;
+	public List<PetDto.VisitResponse> listVisits(int ownerId, int petId) {
+		return findPet(ownerId, petId).getVisits().stream().map(PetDto.VisitResponse::from).toList();
 	}
 
-	private void throwIfInvalid(Errors errors) {
-		if (errors.hasErrors()) {
-			throw new ApiValidationException(errors, FIELD_ALIASES);
-		}
+	@Transactional
+	public PetDto.VisitResponse createVisit(int ownerId, int petId, PetDto.VisitRequest request) {
+		Visit visit = new Visit(findPet(ownerId, petId));
+		apply(request, visit);
+		return PetDto.VisitResponse.from(this.visits.save(visit));
 	}
 
-	private Owner findOwner(int ownerId) {
-		return this.owners.findById(ownerId)
-			.orElseThrow(() -> new ResourceNotFoundException("Owner " + ownerId + " not found"));
+	@Transactional
+	public PetDto.VisitResponse updateVisit(int ownerId, int petId, int visitId, PetDto.VisitRequest request) {
+		Visit visit = findVisit(ownerId, petId, visitId);
+		apply(request, visit);
+		return PetDto.VisitResponse.from(visit);
 	}
 
-	private static Pet findPet(Owner owner, int petId) {
-		Pet pet = owner.getPet(petId);
-		if (pet == null) {
-			throw new ResourceNotFoundException("Pet " + petId + " not found for owner " + owner.getId());
+	@Transactional
+	public void deleteVisit(int ownerId, int petId, int visitId) {
+		this.visits.delete(findVisit(ownerId, petId, visitId));
+	}
+
+	/** 처방이 빈칸이면 저장하지 않는다(null). */
+	private static void apply(PetDto.VisitRequest request, Visit visit) {
+		String prescription = request.prescription();
+		visit.update(request.date(), request.description(),
+				(prescription == null || prescription.isBlank()) ? null : prescription.strip());
+	}
+
+	private PetType findType(int typeId) {
+		return this.types.findById(typeId)
+			.orElseThrow(() -> new ApiValidationException("typeId", "notFound", "찾을 수 없습니다"));
+	}
+
+	private Pet findPet(int ownerId, int petId) {
+		if (!this.owners.existsById(ownerId)) {
+			throw new ResourceNotFoundException("Owner " + ownerId + " not found");
 		}
-		return pet;
+		return this.pets.findByIdAndOwnerId(petId, ownerId)
+			.orElseThrow(() -> new ResourceNotFoundException("Pet " + petId + " not found for owner " + ownerId));
+	}
+
+	private Visit findVisit(int ownerId, int petId, int visitId) {
+		findPet(ownerId, petId);
+		return this.visits.findByIdAndPetId(visitId, petId)
+			.orElseThrow(() -> new ResourceNotFoundException("Visit " + visitId + " not found for pet " + petId));
 	}
 
 }

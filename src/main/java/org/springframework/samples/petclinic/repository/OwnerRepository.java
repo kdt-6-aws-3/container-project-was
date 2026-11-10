@@ -7,6 +7,6 @@ import org.springframework.samples.petclinic.entity.Owner;
 
 public interface OwnerRepository extends JpaRepository<Owner, Integer> {
 
-	Page<Owner> findByNameStartingWith(String name, Pageable pageable);
+	Page<Owner> findByNameStartingWithIgnoreCase(String name, Pageable pageable);
 
 }

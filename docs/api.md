@@ -1,6 +1,6 @@
 # PetClinic REST API
 
-WAS(Spring Boot)는 화면을 제공하지 않고 JSON API만 제공합니다. DB 구조는 `src/main/resources/db/mysql/schema.sql`(병원·수의사·보호자·반려동물·진료 기록·진료 예약)을 따릅니다.
+WAS(Spring Boot)는 화면을 제공하지 않고 JSON API만 제공합니다. DB 테이블(병원·수의사·보호자·반려동물·진료 기록·진료 예약)은 `entity` 패키지의 JPA 엔티티로 정의하며 Hibernate가 만듭니다.
 
 - 기본 경로: `/api` (WEB의 Apache가 `/api` 요청만 내부 ALB를 거쳐 WAS로 전달)
 - 형식: 요청·응답 모두 `application/json`, 문자 인코딩 UTF-8
@@ -188,7 +188,7 @@ WAS(Spring Boot)는 화면을 제공하지 않고 JSON API만 제공합니다. D
 
 | 필드 | 규칙 |
 | --- | --- |
-| `date` | 필수, **오늘 또는 과거** 날짜 (진료 후 기록하므로 미래 날짜는 `400` `visit.dateInFuture`). 종이 기록을 나중에 입력할 수 있도록 과거 날짜는 제한 없음 |
+| `date` | 필수, **오늘 또는 과거** 날짜 (진료 후 기록하므로 미래 날짜는 `400` `PastOrPresent`). 종이 기록을 나중에 입력할 수 있도록 과거 날짜는 제한 없음 |
 | `description` | 필수, 최대 255자 |
 | `prescription` | 선택, 최대 255자. 처방 약품 내역. 비우거나 공백만 보내면 "처방 없음"(`null`)으로 저장 |
 
@@ -325,7 +325,7 @@ WAS(Spring Boot)는 화면을 제공하지 않고 JSON API만 제공합니다. D
 | `appointment.vetTimeTaken` | 수의사가 그 시각에 이미 예약됨 |
 | `appointment.petTimeTaken` | 반려동물이 그 시각에 이미 예약됨 |
 
-두 요청이 같은 시각을 **동시에** 예약하면 위 검사를 둘 다 통과할 수 있는데, 이때는 DB의 고유 인덱스가 두 번째 요청을 막고 `409 Conflict`(`"detail": "The request conflicts with existing data"`)로 응답합니다. 화면에서는 "방금 다른 예약이 먼저 잡혔습니다"처럼 안내하고 목록을 새로 불러오면 됩니다.
+중복 예약은 위 검사(서비스)로 막습니다. 두 요청이 같은 시각을 **동시에** 예약하면 둘 다 검사를 통과할 수 있습니다. 예전 `schema.sql`로 만든 DB에는 고유 인덱스(`active_slot`)가 남아 있어 두 번째 요청이 `409 Conflict`(`"detail": "The request conflicts with existing data"`)가 되지만, Hibernate가 새로 만든 DB에는 이 인덱스가 없습니다. 화면에서는 `409`를 받으면 "방금 다른 예약이 먼저 잡혔습니다"처럼 안내하고 목록을 새로 불러오면 됩니다.
 
 ### PUT `/api/appointments/{appointmentId}`
 
@@ -401,7 +401,7 @@ RFC 9457 Problem Details 형식(`application/problem+json`)입니다.
   "detail": "Validation failed",
   "instance": "/api/owners",
   "errors": [
-    { "field": "phone", "code": "Pattern", "message": "Phone number must look like 010-1234-5678" }
+    { "field": "phone", "code": "Pattern", "message": "전화번호는 010-1234-5678 형식이어야 합니다" }
   ]
 }
 ```
@@ -417,10 +417,10 @@ RFC 9457 Problem Details 형식(`application/problem+json`)입니다.
 }
 ```
 
-검증 오류의 `message`는 요청의 `Accept-Language` 헤더를 따릅니다. 예를 들어 `Accept-Language: ko`면 "전화번호는 010-1234-5678 형식이어야 합니다"처럼 한국어로 나오고, 헤더가 없으면 영어입니다.
+검증 오류의 `message`는 `Accept-Language` 헤더와 관계없이 항상 한국어입니다. `code`는 Bean Validation 이름(`NotBlank`, `NotNull`, `Pattern`, `PastOrPresent`, `Size`) 또는 서비스 검증 코드(`notFound`, `appointment.…`)입니다. 형식 검증(`@Valid`)을 통과한 뒤에 DB 조회 검증을 하므로, 두 종류 오류가 한 응답에 함께 오지는 않습니다.
 
 ## 개발 참고
 
 - 운영에서는 React와 API가 같은 도메인(Apache 경유)이라 CORS 설정이 필요 없습니다.
 - 로컬 개발 중 React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기능으로 `/api`를 `http://localhost:8080`에 연결하세요.
-- 로컬 실행(H2)은 `db/h2`의 스키마·데이터를 쓰며, 내용은 `db/mysql`과 같습니다.
+- 로컬 실행(H2)은 Hibernate가 만든 테이블에 `db/h2/data.sql` 샘플 데이터를 넣어 씁니다. 내용은 `db/mysql/data.sql`과 같습니다.

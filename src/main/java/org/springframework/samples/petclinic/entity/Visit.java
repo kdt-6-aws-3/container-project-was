@@ -4,49 +4,53 @@ import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
+/**
+ * visits 테이블: 진료 기록.
+ */
 @Entity
 @Table(name = "visits")
 public class Visit extends BaseEntity {
 
-	@Column(name = "visit_date")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "pet_id", nullable = false)
+	private Pet pet;
+
+	@Column(name = "visit_date", nullable = false)
 	private LocalDate date;
 
-	@NotBlank
-	@Size(max = 255)
+	@Column(nullable = false)
 	private String description;
 
-	@Size(max = 255)
+	@Column
 	private String prescription;
 
-	public Visit() {
-		this.date = LocalDate.now();
+	protected Visit() {
+	}
+
+	public Visit(Pet pet) {
+		this.pet = pet;
 	}
 
 	public LocalDate getDate() {
 		return this.date;
 	}
 
-	public void setDate(LocalDate date) {
-		this.date = date;
-	}
-
 	public String getDescription() {
 		return this.description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
 	}
 
 	public String getPrescription() {
 		return this.prescription;
 	}
 
-	public void setPrescription(String prescription) {
+	public void update(LocalDate date, String description, String prescription) {
+		this.date = date;
+		this.description = description;
 		this.prescription = prescription;
 	}
 

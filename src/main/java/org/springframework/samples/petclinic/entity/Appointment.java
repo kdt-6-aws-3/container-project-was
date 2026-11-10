@@ -6,97 +6,91 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+/**
+ * appointments 테이블: 진료 예약. 병원·수의사·반려동물별로 시간순 조회가 많아 인덱스를 둔다.
+ */
 @Entity
-@Table(name = "appointments")
+@Table(name = "appointments", indexes = {
+		@Index(name = "idx_appointments_hospital_time", columnList = "hospital_id, appointment_at"),
+		@Index(name = "idx_appointments_vet_time", columnList = "vet_id, appointment_at"),
+		@Index(name = "idx_appointments_pet_time", columnList = "pet_id, appointment_at") })
 public class Appointment extends BaseEntity {
 
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "hospital_id")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "hospital_id", nullable = false)
 	private Hospital hospital;
 
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "pet_id")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "pet_id", nullable = false)
 	private Pet pet;
 
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "vet_id")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "vet_id", nullable = false)
 	private Vet vet;
 
-	@Column(name = "appointment_at")
+	@Column(nullable = false)
 	private LocalDateTime appointmentAt;
 
 	@Enumerated(EnumType.STRING)
-	@Column(length = 20)
-	private AppointmentStatus status;
+	@Column(nullable = false, length = 20)
+	private AppointmentStatus status = AppointmentStatus.REQUESTED;
 
 	@Column
 	private String reason;
 
-	@Column(name = "created_at", updatable = false)
+	@Column(nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
 	@PrePersist
 	void onCreate() {
-		if (this.createdAt == null) {
-			this.createdAt = LocalDateTime.now();
-		}
+		this.createdAt = LocalDateTime.now();
 	}
 
 	public Hospital getHospital() {
 		return this.hospital;
 	}
 
-	public void setHospital(Hospital hospital) {
-		this.hospital = hospital;
-	}
-
 	public Pet getPet() {
 		return this.pet;
-	}
-
-	public void setPet(Pet pet) {
-		this.pet = pet;
 	}
 
 	public Vet getVet() {
 		return this.vet;
 	}
 
-	public void setVet(Vet vet) {
-		this.vet = vet;
-	}
-
 	public LocalDateTime getAppointmentAt() {
 		return this.appointmentAt;
-	}
-
-	public void setAppointmentAt(LocalDateTime appointmentAt) {
-		this.appointmentAt = appointmentAt;
 	}
 
 	public AppointmentStatus getStatus() {
 		return this.status;
 	}
 
-	public void setStatus(AppointmentStatus status) {
-		this.status = status;
-	}
-
 	public String getReason() {
 		return this.reason;
 	}
 
-	public void setReason(String reason) {
+	public LocalDateTime getCreatedAt() {
+		return this.createdAt;
+	}
+
+	public void update(Hospital hospital, Pet pet, Vet vet, LocalDateTime appointmentAt, String reason) {
+		this.hospital = hospital;
+		this.pet = pet;
+		this.vet = vet;
+		this.appointmentAt = appointmentAt;
 		this.reason = reason;
 	}
 
-	public LocalDateTime getCreatedAt() {
-		return this.createdAt;
+	public void changeStatus(AppointmentStatus status) {
+		this.status = status;
 	}
 
 }

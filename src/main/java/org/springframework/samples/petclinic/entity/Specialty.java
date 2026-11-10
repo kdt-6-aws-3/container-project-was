@@ -1,12 +1,21 @@
 package org.springframework.samples.petclinic.entity;
 
-import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
+/**
+ * specialties 테이블: 수의사 전문 분야.
+ */
 @Entity
 @Table(name = "specialties")
-@AttributeOverride(name = "name", column = @Column(name = "specialty_name"))
-public class Specialty extends NamedEntity {
+public class Specialty extends BaseEntity {
+
+	@Column(name = "specialty_name", nullable = false)
+	private String name;
+
+	public String getName() {
+		return this.name;
+	}
+
 }

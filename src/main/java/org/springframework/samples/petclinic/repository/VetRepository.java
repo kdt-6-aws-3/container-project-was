@@ -1,23 +1,12 @@
 package org.springframework.samples.petclinic.repository;
 
 import java.util.List;
-import java.util.Optional;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.repository.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.samples.petclinic.entity.Vet;
-import org.springframework.transaction.annotation.Transactional;
 
-public interface VetRepository extends Repository<Vet, Integer> {
+public interface VetRepository extends JpaRepository<Vet, Integer> {
 
-	@Transactional(readOnly = true)
-	Page<Vet> findAll(Pageable pageable);
-
-	@Transactional(readOnly = true)
-	Optional<Vet> findById(Integer id);
-
-	@Transactional(readOnly = true)
-	List<Vet> findByHospitalIdOrderByIdAsc(Integer hospitalId);
+	List<Vet> findByHospitalIdOrderByIdAsc(int hospitalId);
 
 }

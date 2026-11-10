@@ -2,15 +2,20 @@ package org.springframework.samples.petclinic.service;
 
 import java.util.List;
 
-import org.springframework.samples.petclinic.dto.HospitalDetails;
-import org.springframework.samples.petclinic.dto.VetDetails;
-import org.springframework.samples.petclinic.entity.Hospital;
+import org.springframework.data.domain.Sort;
+import org.springframework.samples.petclinic.dto.HospitalDto;
+import org.springframework.samples.petclinic.dto.PageResponse;
 import org.springframework.samples.petclinic.exception.ResourceNotFoundException;
 import org.springframework.samples.petclinic.repository.HospitalRepository;
 import org.springframework.samples.petclinic.repository.VetRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 병원과 소속 수의사 조회.
+ */
 @Service
+@Transactional(readOnly = true)
 public class HospitalService {
 
 	private final HospitalRepository hospitals;
@@ -22,22 +27,25 @@ public class HospitalService {
 		this.vets = vets;
 	}
 
-	public List<HospitalDetails> listHospitals() {
-		return this.hospitals.findAllByOrderByIdAsc().stream().map(HospitalDetails::from).toList();
+	public List<HospitalDto.Response> listHospitals() {
+		return this.hospitals.findAllByOrderByIdAsc().stream().map(HospitalDto.Response::from).toList();
 	}
 
-	public HospitalDetails getHospital(int hospitalId) {
-		return HospitalDetails.from(findHospital(hospitalId));
+	public HospitalDto.Response getHospital(int hospitalId) {
+		return HospitalDto.Response.from(this.hospitals.findById(hospitalId)
+			.orElseThrow(() -> new ResourceNotFoundException("Hospital " + hospitalId + " not found")));
 	}
 
-	public List<VetDetails> listVets(int hospitalId) {
-		findHospital(hospitalId);
-		return this.vets.findByHospitalIdOrderByIdAsc(hospitalId).stream().map(VetDetails::from).toList();
+	public List<HospitalDto.VetResponse> listVets(int hospitalId) {
+		if (!this.hospitals.existsById(hospitalId)) {
+			throw new ResourceNotFoundException("Hospital " + hospitalId + " not found");
+		}
+		return this.vets.findByHospitalIdOrderByIdAsc(hospitalId).stream().map(HospitalDto.VetResponse::from).toList();
 	}
 
-	private Hospital findHospital(int hospitalId) {
-		return this.hospitals.findById(hospitalId)
-			.orElseThrow(() -> new ResourceNotFoundException("Hospital " + hospitalId + " not found"));
+	public PageResponse<HospitalDto.VetResponse> listAllVets(int page, int size) {
+		return PageResponse.from(this.vets.findAll(PageResponse.request(page, size, Sort.by("id"))),
+				HospitalDto.VetResponse::from);
 	}
 
 }

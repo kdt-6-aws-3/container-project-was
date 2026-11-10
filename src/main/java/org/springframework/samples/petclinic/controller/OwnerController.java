@@ -1,11 +1,9 @@
 package org.springframework.samples.petclinic.controller;
 
-import java.net.URI;
-
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.samples.petclinic.dto.OwnerDetails;
-import org.springframework.samples.petclinic.dto.OwnerRequest;
-import org.springframework.samples.petclinic.dto.OwnerSummary;
+import org.springframework.samples.petclinic.dto.OwnerDto;
 import org.springframework.samples.petclinic.dto.PageResponse;
 import org.springframework.samples.petclinic.service.OwnerService;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 
+/** 보호자 */
 @RestController
 @RequestMapping("/api/owners")
 class OwnerController {
@@ -31,24 +30,26 @@ class OwnerController {
 	}
 
 	@GetMapping
-	PageResponse<OwnerSummary> findOwners(@RequestParam(defaultValue = "") String name,
+	PageResponse<OwnerDto.Summary> findOwners(@RequestParam(defaultValue = "") String name,
 			@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "5") int size) {
 		return this.ownerService.findOwners(name, page, size);
 	}
 
 	@GetMapping("/{ownerId}")
-	OwnerDetails showOwner(@PathVariable int ownerId) {
+	OwnerDto.Response showOwner(@PathVariable int ownerId) {
 		return this.ownerService.getOwner(ownerId);
 	}
 
 	@PostMapping
-	ResponseEntity<OwnerDetails> createOwner(@Valid @RequestBody OwnerRequest request) {
-		OwnerDetails created = this.ownerService.createOwner(request);
-		return ResponseEntity.created(URI.create("/api/owners/" + created.id())).body(created);
+	ResponseEntity<OwnerDto.Response> createOwner(@Valid @RequestBody OwnerDto.Request request) {
+		OwnerDto.Response created = this.ownerService.createOwner(request);
+		return ResponseEntity.status(HttpStatus.CREATED)
+			.header(HttpHeaders.LOCATION, "/api/owners/" + created.id())
+			.body(created);
 	}
 
 	@PutMapping("/{ownerId}")
-	OwnerDetails updateOwner(@PathVariable int ownerId, @Valid @RequestBody OwnerRequest request) {
+	OwnerDto.Response updateOwner(@PathVariable int ownerId, @Valid @RequestBody OwnerDto.Request request) {
 		return this.ownerService.updateOwner(ownerId, request);
 	}
 

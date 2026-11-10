@@ -48,15 +48,15 @@ AWS 3-Tier(WEB · WAS · DB) 인프라 구축 프로젝트의 **WAS 계층** 애
 
 ```text
 org.springframework.samples.petclinic
-├── controller   REST 컨트롤러 (요청·응답 변환만)
-├── service      업무 로직과 검증 (PetValidator 포함)
+├── controller   REST 컨트롤러 (보호자·반려동물·병원·예약 4개, 요청·응답 변환만)
+├── service      업무 로직과 DB 조회가 필요한 검증 (보호자·반려동물·병원·예약 4개)
 ├── repository   Spring Data JPA 리포지토리
-├── entity       JPA 엔티티 (Owner, Pet, PetType, Visit, Hospital, Vet, Specialty, Appointment 등)
-├── dto          요청·응답 JSON (…Request, …Details, …Summary, PageResponse)
+├── entity       JPA 엔티티 = 테이블 하나에 클래스 하나 (Owner, Pet, PetType, Visit, Hospital, Vet, Specialty, Appointment)
+├── dto          요청·응답 JSON (OwnerDto, PetDto, HospitalDto, AppointmentDto 안에 Request·Response 레코드, PageResponse)
 └── exception    예외와 오류 응답 처리 (RFC 9457)
 ```
 
-반려동물과 진료 기록은 보호자에 딸린 데이터라 별도 리포지토리 없이 `OwnerRepository`로 보호자와 함께 저장·삭제합니다. DB의 외래 키에 `ON DELETE CASCADE`가 없으므로, 보호자나 반려동물을 지울 때는 진료 예약을 먼저 지우고, 이어서 JPA가 진료 기록 → 반려동물 → 보호자 순서로 지웁니다.
+엔티티는 응답으로 바로 내보내지 않고 DTO로 바꿔서 보냅니다(지연 로딩 프록시·순환 참조 때문). 입력 검증은 DTO의 Bean Validation(`@NotBlank`, `@Pattern` 등)이 하고, DB를 봐야 하는 검증(없는 ID, 예약 시간 중복)만 서비스가 합니다. 보호자나 반려동물을 지울 때는 진료 예약을 먼저 지우고, 이어서 JPA cascade가 진료 기록 → 반려동물 → 보호자 순서로 지웁니다.
 
 ## API
 
@@ -84,7 +84,7 @@ JDK 21이 필요합니다.
 ./gradlew bootRun
 ```
 
-<http://localhost:8080/api/owners> 또는 <http://localhost:8080/actuator/health>로 확인합니다. 기본 DB는 H2(메모리)이며, 기동할 때 `src/main/resources/db/h2/schema.sql`과 `data.sql`로 테이블과 샘플 데이터를 만듭니다. 이 두 파일은 `db/mysql`(운영 RDS 스키마·데이터)을 H2 문법으로 옮긴 것이므로, MySQL 쪽이 바뀌면 함께 고칩니다.
+<http://localhost:8080/api/owners> 또는 <http://localhost:8080/actuator/health>로 확인합니다. 기본 DB는 H2(메모리)입니다. 테이블은 따로 SQL 파일 없이 **Hibernate가 엔티티 클래스를 보고 기동할 때 만들고**(`ddl-auto=create-drop`), 그 뒤에 `src/main/resources/db/h2/data.sql`이 샘플 데이터를 넣습니다. 테이블 구조를 바꾸려면 엔티티의 `@Column`·`@Table`을 고칩니다.
 
 React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기능으로 `/api`를 `http://localhost:8080`에 연결합니다. 운영에서는 같은 도메인(Apache 경유)이라 CORS 설정이 필요 없습니다.
 
@@ -96,7 +96,7 @@ React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기�
 
 - 결과물: `build/libs/spring-petclinic-4.0.0-SNAPSHOT.jar` (실행 가능한 JAR 하나만 만듭니다. `-plain.jar`는 만들지 않습니다)
 - Windows에서는 `gradlew.bat clean bootJar`를 씁니다.
-- 자동 테스트는 없습니다. 코드나 `db/mysql` 스키마·데이터를 바꾼 뒤에는 로컬(H2)과 RDS(또는 로컬 MySQL)에서 API를 직접 호출해 확인합니다.
+- 자동 테스트는 없습니다. 엔티티나 샘플 데이터를 바꾼 뒤에는 로컬(H2)과 RDS(또는 로컬 MySQL)에서 API를 직접 호출해 확인합니다.
 
 ## MySQL로 실행
 
@@ -106,9 +106,9 @@ React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기�
 SPRING_PROFILES_ACTIVE=mysql SPRING_DATASOURCE_URL=jdbc:mysql://<DB 엔드포인트>:3306/petclinic SPRING_DATASOURCE_USERNAME=petclinic SPRING_DATASOURCE_PASSWORD=<비밀번호> java -jar build/libs/spring-petclinic-4.0.0-SNAPSHOT.jar
 ```
 
-- 테이블과 데이터는 DB 담당이 `src/main/resources/db/mysql/schema.sql`과 `data.sql`을 **한 번** 실행해 만듭니다. 두 파일은 다시 실행할 수 없어서(`CREATE TABLE`, 일반 `INSERT`) `mysql` 프로파일은 기동할 때 SQL을 실행하지 않습니다(`spring.sql.init.mode=never`).
-- 빈 DB에 처음 한 번만 앱으로 넣으려면 `SPRING_SQL_INIT_MODE=always`를 잠깐 주고 기동한 뒤 다시 뺍니다.
-- 앱 전용 DB 계정에는 데이터 읽기·쓰기 권한(`SELECT, INSERT, UPDATE, DELETE`)만 있으면 됩니다.
+- DB(`petclinic`)가 없으면 접속할 때 만들고(`createDatabaseIfNotExist=true`), 테이블은 Hibernate가 엔티티와 비교해 **없는 테이블·컬럼만 추가**합니다(`ddl-auto=update`). 기존 데이터와 컬럼은 지우거나 바꾸지 않습니다.
+- 그래서 앱 DB 계정에는 데이터 권한(`SELECT, INSERT, UPDATE, DELETE`)에 더해 `CREATE, ALTER, INDEX, REFERENCES` 권한이 필요합니다.
+- 샘플 데이터(`db/mysql/data.sql`)는 자동으로 넣지 않습니다(`spring.sql.init.mode=never`). 빈 DB에 처음 한 번만 넣으려면 `SPRING_SQL_INIT_MODE=always`를 잠깐 주고 기동한 뒤 다시 뺍니다(일반 `INSERT`라 두 번 실행하면 중복 오류).
 
 ## 서버(EC2)에 배포
 
