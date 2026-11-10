@@ -1,4 +1,6 @@
-/mvnw           text eol=lf
+/gradlew        text eol=lf
+*.bat           text eol=crlf
+*.jar           binary
 *.java          text eol=lf
 
 /deploy/**      text eol=lf

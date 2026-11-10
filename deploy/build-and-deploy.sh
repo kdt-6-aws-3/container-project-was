@@ -17,11 +17,11 @@ sudo -H -u "$BUILD_USER" git -C "$REPO_DIR" pull --ff-only
 
 echo "==> Build"
 cd "$REPO_DIR"
-sudo -H -u "$BUILD_USER" sh ./mvnw -B clean package
+sudo -H -u "$BUILD_USER" sh ./gradlew clean bootJar
 
-jars=(target/spring-petclinic-*.jar)
+jars=(build/libs/spring-petclinic-*.jar)
 if [[ ${#jars[@]} -ne 1 || ! -f "${jars[0]}" ]]; then
-	echo "Expected exactly one JAR in target/, found: ${jars[*]}" >&2
+	echo "Expected exactly one JAR in build/libs/, found: ${jars[*]}" >&2
 	exit 1
 fi
 

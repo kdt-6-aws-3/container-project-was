@@ -40,7 +40,7 @@ AWS 3-Tier(WEB · WAS · DB) 인프라 구축 프로젝트의 **WAS 계층** 애
 | 웹 서버 | 내장 Tomcat 11 (실행 가능한 JAR) |
 | 영속성 | Spring Data JPA (Hibernate) |
 | DB | H2(기본, 개발용) / MySQL(`mysql` 프로파일) |
-| 빌드 | Maven Wrapper(`mvnw`) |
+| 빌드 | Gradle Wrapper(`gradlew`, Gradle 8.14.2) |
 
 ## 패키지 구조
 
@@ -81,7 +81,7 @@ org.springframework.samples.petclinic
 JDK 21이 필요합니다.
 
 ```bash
-./mvnw spring-boot:run
+./gradlew bootRun
 ```
 
 <http://localhost:8080/api/owners> 또는 <http://localhost:8080/actuator/health>로 확인합니다. 기본 DB는 H2(메모리)이며, 기동할 때 `src/main/resources/db/h2/schema.sql`과 `data.sql`로 테이블과 샘플 데이터를 만듭니다. 이 두 파일은 `db/mysql`(운영 RDS 스키마·데이터)을 H2 문법으로 옮긴 것이므로, MySQL 쪽이 바뀌면 함께 고칩니다.
@@ -91,10 +91,11 @@ React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기�
 ## 빌드
 
 ```bash
-./mvnw clean package
+./gradlew clean bootJar
 ```
 
-- 결과물: `target/spring-petclinic-4.0.0-SNAPSHOT.jar` (실행 가능한 JAR)
+- 결과물: `build/libs/spring-petclinic-4.0.0-SNAPSHOT.jar` (실행 가능한 JAR 하나만 만듭니다. `-plain.jar`는 만들지 않습니다)
+- Windows에서는 `gradlew.bat clean bootJar`를 씁니다.
 - 자동 테스트는 없습니다. 코드나 `db/mysql` 스키마·데이터를 바꾼 뒤에는 로컬(H2)과 RDS(또는 로컬 MySQL)에서 API를 직접 호출해 확인합니다.
 
 ## MySQL로 실행
@@ -102,7 +103,7 @@ React 개발 서버에서 호출할 때는 React 개발 서버의 프록시 기�
 `mysql` 프로파일을 켜고 접속 정보는 환경 변수로 넘깁니다.
 
 ```bash
-SPRING_PROFILES_ACTIVE=mysql SPRING_DATASOURCE_URL=jdbc:mysql://<DB 엔드포인트>:3306/petclinic SPRING_DATASOURCE_USERNAME=petclinic SPRING_DATASOURCE_PASSWORD=<비밀번호> java -jar target/spring-petclinic-4.0.0-SNAPSHOT.jar
+SPRING_PROFILES_ACTIVE=mysql SPRING_DATASOURCE_URL=jdbc:mysql://<DB 엔드포인트>:3306/petclinic SPRING_DATASOURCE_USERNAME=petclinic SPRING_DATASOURCE_PASSWORD=<비밀번호> java -jar build/libs/spring-petclinic-4.0.0-SNAPSHOT.jar
 ```
 
 - 테이블과 데이터는 DB 담당이 `src/main/resources/db/mysql/schema.sql`과 `data.sql`을 **한 번** 실행해 만듭니다. 두 파일은 다시 실행할 수 없어서(`CREATE TABLE`, 일반 `INSERT`) `mysql` 프로파일은 기동할 때 SQL을 실행하지 않습니다(`spring.sql.init.mode=never`).
@@ -115,7 +116,7 @@ Amazon Linux 2023 기준입니다. 원본 EC2 한 대에서 이 레포를 받아
 
 | 파일 | 역할 |
 | --- | --- |
-| `deploy/build-and-deploy.sh` | git·JDK 설치 → `git pull` → `./mvnw` 빌드 → `setup-was.sh` 실행 |
+| `deploy/build-and-deploy.sh` | git·JDK 설치 → `git pull` → `./gradlew` 빌드 → `setup-was.sh` 실행 |
 | `deploy/setup-was.sh` | Corretto 21 설치, `petclinic` 계정 생성, JAR·시작 스크립트·서비스 설치 후 시작 |
 | `deploy/start.sh` | Parameter Store에서 DB 접속 정보를 읽어 환경 변수로 넘기고 Java 실행 → `/opt/petclinic/start.sh` |
 | `deploy/petclinic.service` | systemd 서비스 → `/etc/systemd/system/` (부팅 시 자동 시작, 비정상 종료 시 10초 뒤 재시작, 시간대 `Asia/Seoul`) |
@@ -135,7 +136,7 @@ IAM 권한은 따로 추가하지 않습니다. SSM 접속용으로 WAS 역할�
 
 비밀번호를 바꿀 때는 Parameter Store 값을 고친 뒤 `sudo systemctl restart petclinic`(또는 ASG 인스턴스 새로 고침)만 하면 됩니다. AMI는 다시 만들 필요가 없습니다.
 
-라이브러리는 따로 설치하지 않습니다. `./mvnw`가 `pom.xml`에 적힌 라이브러리를 내려받아 실행 가능한 JAR 안에 모두 넣으므로, 서버에는 빌드용 git·JDK와 실행용 Java만 있으면 됩니다.
+라이브러리는 따로 설치하지 않습니다. `./gradlew`가 `build.gradle`에 적힌 라이브러리를 내려받아 실행 가능한 JAR 안에 모두 넣으므로, 서버에는 빌드용 git·JDK와 실행용 Java만 있으면 됩니다.
 
 1. EC2에 SSM Session Manager로 접속해 레포를 받습니다. (EC2에서 인터넷으로 나갈 수 있어야 합니다)
 
