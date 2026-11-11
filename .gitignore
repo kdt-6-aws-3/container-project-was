@@ -21,3 +21,4 @@ docker-compose*.yml
 compose*.yaml
 .devcontainer/
 k8s/
+.github/
