@@ -16,7 +16,6 @@ out/
 .DS_Store
 logs/
 
-Dockerfile
 docker-compose*.yml
 compose*.yaml
 .devcontainer/

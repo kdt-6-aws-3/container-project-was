@@ -235,7 +235,7 @@ docker logs -f petclinic-was
 
 ### 새 버전 올리기
 
-이미지 빌드에 쓰는 `Dockerfile`은 팀 결정에 따라 `.gitignore`로 저장소에서 제외되어 있습니다. 새 버전은 Dockerfile을 가진 담당자가 버전을 올려 푸시합니다(`write:packages` 권한 필요).
+이미지는 저장소의 `Dockerfile`로 빌드합니다. 새 버전은 Dockerfile의 `VERSION`을 올린 뒤 푸시합니다(`write:packages` 권한 필요).
 
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 \
