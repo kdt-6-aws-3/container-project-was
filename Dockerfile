@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-# 빌드 예시 (K8s 노드가 amd64인 경우, ARM 머신에서 빌드할 때 필수):
-#   docker buildx build --platform linux/amd64 --build-arg VERSION=0.0.2 -t <image>:<tag> .
-ARG VERSION=0.0.2
+# 빌드 예시: EKS 노드(linux/amd64)와 로컬 Mac(linux/arm64)에서 모두 실행되도록 두 플랫폼을 함께 빌드
+#   docker buildx build --platform linux/amd64,linux/arm64 --build-arg VERSION=0.0.3 -t <image>:0.0.3 --push .
+ARG VERSION=0.0.3
 
 # Stage 1: 빌드
 FROM eclipse-temurin:21-jdk-alpine AS builder
@@ -22,7 +22,9 @@ RUN --mount=type=cache,target=/root/.gradle \
 FROM eclipse-temurin:21-jre-alpine
 ARG VERSION
 
-LABEL org.opencontainers.image.source="https://github.com/kdt-6-aws-3/container-project-was"
+LABEL org.opencontainers.image.source="https://github.com/kdt-6-aws-3/container-project-was" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.title="container-project-was"
 
 # tzdata: OS 레벨(date, 로그 수집기 등)에서도 TZ=Asia/Seoul 적용
 # 숫자 UID/GID 고정: K8s runAsNonRoot 검증 통과용
