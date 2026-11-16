@@ -26,6 +26,10 @@ dependencies {
 	implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	// EKS: RDS Proxy에 IAM 토큰으로 접속 (IRSA 자격 증명 사용, DB 비밀번호 불필요)
+	runtimeOnly 'software.amazon.jdbc:aws-advanced-jdbc-wrapper:4.6.0'
+	runtimeOnly 'software.amazon.awssdk:rds:2.59.1'  // IAM 인증 토큰 생성
+	runtimeOnly 'software.amazon.awssdk:sts:2.59.1'  // IRSA(Web Identity) 자격 증명 교환
 }
 
 // 실행 가능한 JAR(bootJar) 하나만 build/libs에 남긴다

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # 빌드 예시: EKS 노드(linux/amd64)와 로컬 Mac(linux/arm64)에서 모두 실행되도록 두 플랫폼을 함께 빌드
-#   docker buildx build --platform linux/amd64,linux/arm64 --build-arg VERSION=0.0.3 -t <image>:0.0.3 --push .
-ARG VERSION=0.0.3
+#   docker buildx build --platform linux/amd64,linux/arm64 --build-arg VERSION=0.0.4 -t <image>:0.0.4 --push .
+ARG VERSION=0.0.4
 
 # Stage 1: 빌드
 FROM eclipse-temurin:21-jdk-alpine AS builder
